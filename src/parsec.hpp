@@ -3,6 +3,7 @@
 #include <any>
 #include <tuple>
 #include <string>
+#include <memory>
 #include <variant>
 #include <optional>
 #include <exception>
@@ -170,13 +171,15 @@ class ParsecComponent : public ParsecComponentBase {
   public:
     using ResultType = std::optional<Result>;
 
+    ParsecComponent() = default;
+    ParsecComponent(ParsecComponent &&component)
+      : exec_(std::move(component.exec_)) {}
     virtual ~ParsecComponent() = default;
 
     ResultType operator()(const std::string &str, std::size_t &index) const {
         return exec_(str, index);
     }
 
-    // R maybe std::variant, type of Args also may be std::variant
     template<typename Func>
     auto operator>>(Func &&callback) const {
         std::function cb = std::move(callback);
@@ -231,14 +234,14 @@ class ParsecComponent : public ParsecComponentBase {
 template<typename Result>
 class Parsec {
   public:
-    Parsec() = default;
+    Parsec() : component_(nullptr) {};
 
-    ParsecComponent<Result> *component() const {
-        return static_cast<ParsecComponent<Result>*>(component_);
+    std::shared_ptr<ParsecComponent<Result>> component() const {
+        return std::static_pointer_cast<ParsecComponent<Result>>(component_);
     }
 
-    Parsec &operator=(const ParsecComponent<Result> &component) {
-        component_ = new ParsecComponent<Result>(component);
+    Parsec &operator=(ParsecComponent<Result> &&component) {
+        component_ = std::make_shared<ParsecComponent<Result>>(std::move(component));
         return *this;
     }
 
@@ -312,7 +315,7 @@ class Parsec {
     }
 
   private:
-    ParsecComponentBase *component_ = nullptr;
+    std::shared_ptr<ParsecComponentBase> component_;
 };
 
 template<typename Result>
