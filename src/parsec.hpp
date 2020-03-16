@@ -11,83 +11,94 @@
 #include <type_traits>
 
 namespace parsec {
-template<typename T> struct IsTuple {
+template<typename T>
+struct lambda_traits : lambda_traits<decltype(&T::operator())> {};
+template<typename ClassType, typename R, typename ...Args>
+struct lambda_traits<R(ClassType::*)(Args...) const> {
+    using result_type = R;
+    using args_type = std::tuple<Args...>;
+    template<size_t index>
+    using arg_type_at = std::tuple_element_t<index, args_type>;
+    static constexpr size_t arity = sizeof...(Args);
+};
+
+template<typename T> struct is_tuple {
     static constexpr bool value = false;
 };
-template<typename ...Ts> struct IsTuple<std::tuple<Ts...>> {
+template<typename ...Ts> struct is_tuple<std::tuple<Ts...>> {
     static constexpr bool value = true;
 };
-template<typename T> constexpr bool IsTuple_v = IsTuple<T>::value;
+template<typename T> constexpr bool is_tuple_v = is_tuple<T>::value;
 
-template<typename T1, typename T2> struct Concat;
-template<typename T1, typename T2> struct Addition;
-template<typename T1, typename T2> struct Product;
+template<typename T1, typename T2> struct concat;
+template<typename T1, typename T2> struct addition;
+template<typename T1, typename T2> struct product;
 
-template<typename T1, typename T2> using Concat_t = typename Concat<T1, T2>::type;
-template<typename T1, typename T2> using Addition_t = typename Addition<T1, T2>::type;
-template<typename T1, typename T2> using Product_t = typename Product<T1, T2>::type;
+template<typename T1, typename T2> using concat_t = typename concat<T1, T2>::type;
+template<typename T1, typename T2> using addition_t = typename addition<T1, T2>::type;
+template<typename T1, typename T2> using product_t = typename product<T1, T2>::type;
 
-template<typename T1, typename ...T2s> struct Concat<T1, std::variant<T2s...>> {
+template<typename T1, typename ...T2s> struct concat<T1, std::variant<T2s...>> {
     using type = std::variant<T1, T2s...>;
 };
-template<typename ...T1s, typename ...T2s> struct Concat<std::variant<T1s...>, std::variant<T2s...>> {
+template<typename ...T1s, typename ...T2s> struct concat<std::variant<T1s...>, std::variant<T2s...>> {
     using type = std::variant<T1s..., T2s...>;
 };
 
-template<typename T1, typename T2> struct Addition {
+template<typename T1, typename T2> struct addition {
     using type = std::conditional_t<std::is_same_v<T1, T2>, T1, std::variant<T1, T2>>;
 };
-template<typename T1, typename T2> struct Addition<std::variant<T1>, T2> {
+template<typename T1, typename T2> struct addition<std::variant<T1>, T2> {
     using type = std::conditional_t<std::is_same_v<T1, T2>, std::variant<T1>, std::variant<T1 ,T2>>;
 };
-template<typename T1, typename T2> struct Addition<T1, std::variant<T2>> {
+template<typename T1, typename T2> struct addition<T1, std::variant<T2>> {
     using type = std::conditional_t<std::is_same_v<T1, T2>, std::variant<T1>, std::variant<T1 ,T2>>;
 };
-template<typename T1, typename ...T1s, typename T2> struct Addition<std::variant<T1, T1s...>, T2> {
-    using type = std::conditional_t<std::is_same_v<T1, T2>, std::variant<T1, T1s...>, Concat_t<T1, Addition_t<std::variant<T1s...>, T2>>>;
+template<typename T1, typename ...T1s, typename T2> struct addition<std::variant<T1, T1s...>, T2> {
+    using type = std::conditional_t<std::is_same_v<T1, T2>, std::variant<T1, T1s...>, concat_t<T1, addition_t<std::variant<T1s...>, T2>>>;
 };
-template<typename T1, typename T2, typename ...T2s> struct Addition<T1, std::variant<T2, T2s...>> {
-    using type = std::conditional_t<std::is_same_v<T1, T2>, std::variant<T2, T2s...>, Concat_t<T2, Addition_t<std::variant<T2s...>, T1>>>;
+template<typename T1, typename T2, typename ...T2s> struct addition<T1, std::variant<T2, T2s...>> {
+    using type = std::conditional_t<std::is_same_v<T1, T2>, std::variant<T2, T2s...>, concat_t<T2, addition_t<std::variant<T2s...>, T1>>>;
 };
-template<typename T1, typename T2> struct Addition<std::variant<T1>, std::variant<T2>> {
+template<typename T1, typename T2> struct addition<std::variant<T1>, std::variant<T2>> {
     using type = std::conditional_t<std::is_same_v<T1, T2>, std::variant<T1>, std::variant<T1, T2>>;
 };
-template<typename T1, typename T2, typename ...T2s> struct Addition<std::variant<T1>, std::variant<T2, T2s...>> {
-    using type = std::conditional_t<std::is_same_v<T1, T2>, std::variant<T2, T2s...>, Concat_t<T2, Addition_t<T1, std::variant<T2s...>>>>;
+template<typename T1, typename T2, typename ...T2s> struct addition<std::variant<T1>, std::variant<T2, T2s...>> {
+    using type = std::conditional_t<std::is_same_v<T1, T2>, std::variant<T2, T2s...>, concat_t<T2, addition_t<T1, std::variant<T2s...>>>>;
 };
-template<typename T1, typename ...T1s, typename ...T2s> struct Addition<std::variant<T1, T1s...>, std::variant<T2s...>> {
-    using type = Concat_t<Addition_t<T1, std::variant<T2s...>>, Addition_t<std::variant<T1s...>, std::variant<T2s...>>>;
+template<typename T1, typename ...T1s, typename ...T2s> struct addition<std::variant<T1, T1s...>, std::variant<T2s...>> {
+    using type = concat_t<addition_t<T1, std::variant<T2s...>>, addition_t<std::variant<T1s...>, std::variant<T2s...>>>;
 };
 
-template<typename T1, typename T2> struct Product {
+template<typename T1, typename T2> struct product {
     using type = std::tuple<T1, T2>;
 };
-template<typename ...T1s, typename T2> struct Product<std::tuple<T1s...>, T2> {
+template<typename ...T1s, typename T2> struct product<std::tuple<T1s...>, T2> {
     using type = std::tuple<T1s..., T2>;
 };
-template<typename T1, typename ...T2s> struct Product<T1, std::tuple<T2s...>> {
+template<typename T1, typename ...T2s> struct product<T1, std::tuple<T2s...>> {
     using type = std::tuple<T1, T2s...>;
 };
-template<typename ...T1s, typename ...T2s> struct Product<std::tuple<T1s...>, std::tuple<T2s...>> {
+template<typename ...T1s, typename ...T2s> struct product<std::tuple<T1s...>, std::tuple<T2s...>> {
     using type = std::tuple<T1s..., T2s...>;
 };
-template<typename T1, typename T2> struct Product<std::variant<T1>, T2> {
+template<typename T1, typename T2> struct product<std::variant<T1>, T2> {
     using type = std::variant<std::tuple<T1, T2>>;
 };
-template<typename T1, typename T2> struct Product<T1, std::variant<T2>> {
+template<typename T1, typename T2> struct product<T1, std::variant<T2>> {
     using type = std::variant<std::tuple<T1, T2>>;
 };
-template<typename T1, typename ...T1s, typename T2> struct Product<std::variant<T1, T1s...>, T2> {
-    using type = Concat_t<Product_t<T1, T2>, Product_t<std::variant<T1s...>, T2>>;
+template<typename T1, typename ...T1s, typename T2> struct product<std::variant<T1, T1s...>, T2> {
+    using type = concat_t<product_t<T1, T2>, product_t<std::variant<T1s...>, T2>>;
 };
-template<typename T1, typename T2, typename ...T2s> struct Product<T1, std::variant<T2, T2s...>> {
-    using type = Concat_t<Product_t<T1, T2>, Product_t<T1, std::variant<T2s...>>>;
+template<typename T1, typename T2, typename ...T2s> struct product<T1, std::variant<T2, T2s...>> {
+    using type = concat_t<product_t<T1, T2>, product_t<T1, std::variant<T2s...>>>;
 };
-template<typename T1, typename ...T2s> struct Product<std::variant<T1>, std::variant<T2s...>> {
-    using type = Product_t<T1, std::variant<T2s...>>;
+template<typename T1, typename ...T2s> struct product<std::variant<T1>, std::variant<T2s...>> {
+    using type = product_t<T1, std::variant<T2s...>>;
 };
-template<typename T1, typename ...T1s, typename ...T2s> struct Product<std::variant<T1, T1s...>, std::variant<T2s...>> {
-    using type = Addition_t<Product_t<T1, std::variant<T2s...>>, Product_t<std::variant<T1s...>, std::variant<T2s...>>>;
+template<typename T1, typename ...T1s, typename ...T2s> struct product<std::variant<T1, T1s...>, std::variant<T2s...>> {
+    using type = addition_t<product_t<T1, std::variant<T2s...>>, product_t<std::variant<T1s...>, std::variant<T2s...>>>;
 };
 
 class ParsecComponentBase {
@@ -107,7 +118,7 @@ inline std::optional<Result> callback_template(Func1 exec, Func2 callback, const
     auto result = exec(str, index);
     if (result) {
         auto v = result.value();
-        if constexpr (IsTuple_v<decltype(v)>) {
+        if constexpr (is_tuple_v<decltype(v)>) {
             return std::apply(callback, v);
         } else {
             return callback(v);
@@ -146,11 +157,11 @@ inline std::optional<Result> connect_template(Func1 lexec, Func2 rexec, const st
         if (rr) {
             auto lv = lr.value();
             auto rv = rr.value();
-            if constexpr (IsTuple_v<decltype(lv)> and IsTuple_v<decltype(rv)>) {
+            if constexpr (is_tuple_v<decltype(lv)> and is_tuple_v<decltype(rv)>) {
                 return std::tuple_cat(lv, rv);
-            } else if constexpr (IsTuple_v<decltype(lv)>) {
+            } else if constexpr (is_tuple_v<decltype(lv)>) {
                 return std::tuple_cat(lv, std::make_tuple(rv));
-            } else if constexpr (IsTuple_v<decltype(rv)>) {
+            } else if constexpr (is_tuple_v<decltype(rv)>) {
                 return std::tuple_cat(std::make_tuple(lv), rv);
             } else {
                 return std::make_tuple(lv, rv);
@@ -180,19 +191,18 @@ class ParsecComponent : public ParsecComponentBase {
         return exec_(str, index);
     }
 
-    template<typename Func>
-    auto operator>>(Func &&callback) const {
-        std::function cb = std::move(callback);
-        using NewResult = typename decltype(cb)::result_type;
+    template<typename Func,
+        typename NewResult = typename lambda_traits<Func>::result_type>
+    ParsecComponent<NewResult> operator>>(Func &&callback) const {
         ParsecComponent<NewResult> component;
-        component.set_exec([exec = this->exec(), cb](const std::string &str, std::size_t &index) {
+        component.set_exec([exec = this->exec(), cb = std::move(callback)](const std::string &str, std::size_t &index) {
             return callback_template<NewResult>(exec, cb, str, index);
         });
         return component;
     }
 
     template<typename RhsResult,
-        typename NewResult = Addition_t<Result, RhsResult>>
+        typename NewResult = addition_t<Result, RhsResult>>
     ParsecComponent<NewResult> operator|(const ParsecComponent<RhsResult> &rhs) const {
         ParsecComponent<NewResult> component;
         component.set_exec([lexec = this->exec(), rexec = rhs.exec()](const std::string &str, std::size_t &index) {
@@ -202,7 +212,7 @@ class ParsecComponent : public ParsecComponentBase {
     }
 
     template<typename RhsResult,
-        typename NewResult = Product_t<Result, RhsResult>>
+        typename NewResult = product_t<Result, RhsResult>>
     ParsecComponent<NewResult> operator+(const ParsecComponent<RhsResult> &rhs) const {
         ParsecComponent<NewResult> component;
         component.set_exec([lexec = this->exec(), rexec = rhs.exec()](const std::string &str, std::size_t &index) {
@@ -212,10 +222,10 @@ class ParsecComponent : public ParsecComponentBase {
     }
 
     template<typename RhsResult>
-    ParsecComponent<Addition_t<Result, RhsResult>> operator|(const Parsec<RhsResult> &rhs) const;
+    ParsecComponent<addition_t<Result, RhsResult>> operator|(const Parsec<RhsResult> &rhs) const;
 
     template<typename RhsResult>
-    ParsecComponent<Product_t<Result, RhsResult>> operator+(const Parsec<RhsResult> &rhs) const;
+    ParsecComponent<product_t<Result, RhsResult>> operator+(const Parsec<RhsResult> &rhs) const;
 
     void set_exec(std::function<ResultType(const std::string &, std::size_t &)> &&exec) {
         exec_ = std::move(exec);
@@ -263,19 +273,18 @@ class Parsec {
         }
     }
 
-    template<typename Func>
-    auto operator>>(Func &&callback) {
-        std::function cb = std::move(callback);
-        using NewResult = typename decltype(cb)::result_type;
+    template<typename Func,
+        typename NewResult = typename lambda_traits<Func>::result_type>
+    ParsecComponent<NewResult> operator>>(Func &&callback) {
         ParsecComponent<NewResult> component;
-        component.set_exec([this, cb](const std::string &str, std::size_t &index) {
+        component.set_exec([this, cb = std::move(callback)](const std::string &str, std::size_t &index) {
             return callback_template<NewResult>(this->component()->exec(), cb, str, index);
         });
         return component;
     }
 
     template<typename RhsResult,
-        typename NewResult = Addition_t<Result, RhsResult>>
+        typename NewResult = addition_t<Result, RhsResult>>
     ParsecComponent<NewResult> operator|(const Parsec<RhsResult> &rhs) {
         ParsecComponent<NewResult> component;
         component.set_exec([this, &rhs](const std::string &str, std::size_t &index) {
@@ -285,7 +294,7 @@ class Parsec {
     }
 
     template<typename RhsResult,
-        typename NewResult = Product_t<Result, RhsResult>>
+        typename NewResult = product_t<Result, RhsResult>>
     ParsecComponent<NewResult> operator+(const Parsec<RhsResult> &rhs) {
         ParsecComponent<NewResult> component;
         component.set_exec([this, &rhs](const std::string &str, std::size_t &index) {
@@ -295,7 +304,7 @@ class Parsec {
     }
 
     template<typename RhsResult,
-        typename NewResult = Addition_t<Result, RhsResult>>
+        typename NewResult = addition_t<Result, RhsResult>>
     ParsecComponent<NewResult> operator|(const ParsecComponent<RhsResult> &rhs) {
         ParsecComponent<NewResult> component;
         component.set_exec([this, rexec = rhs.exec()](const std::string &str, std::size_t &index) {
@@ -305,7 +314,7 @@ class Parsec {
     }
 
     template<typename RhsResult,
-        typename NewResult = Product_t<Result, RhsResult>>
+        typename NewResult = product_t<Result, RhsResult>>
     ParsecComponent<NewResult> operator+(const ParsecComponent<RhsResult> &rhs) {
         ParsecComponent<NewResult> component;
         component.set_exec([this, rexec = rhs.exec()](const std::string &str, std::size_t &index) {
@@ -320,9 +329,9 @@ class Parsec {
 
 template<typename Result>
 template<typename RhsResult>
-inline ParsecComponent<Addition_t<Result, RhsResult>>
+inline ParsecComponent<addition_t<Result, RhsResult>>
 ParsecComponent<Result>::operator|(const Parsec<RhsResult> &rhs) const {
-    using NewResult = Addition_t<Result, RhsResult>;
+    using NewResult = addition_t<Result, RhsResult>;
     ParsecComponent<NewResult> component;
     component.set_exec([lexec = this->exec(), &rhs](const std::string &str, std::size_t &index) {
         return alternate_template<NewResult>(lexec, rhs.component()->exec(), str, index);
@@ -332,9 +341,9 @@ ParsecComponent<Result>::operator|(const Parsec<RhsResult> &rhs) const {
 
 template<typename Result>
 template<typename RhsResult>
-inline ParsecComponent<Product_t<Result, RhsResult>>
+inline ParsecComponent<product_t<Result, RhsResult>>
 ParsecComponent<Result>::operator+(const Parsec<RhsResult> &rhs) const {
-    using NewResult = Product_t<Result, RhsResult>;
+    using NewResult = product_t<Result, RhsResult>;
     ParsecComponent<NewResult> component;
     component.set_exec([lexec = this->exec(), &rhs](const std::string &str, std::size_t &index) {
         return connect_template<NewResult>(lexec, rhs.component()->exec(), str, index);
