@@ -11,18 +11,30 @@
 #include <type_traits>
 
 namespace parsec {
-template<typename T, typename ...Args>
-struct lambda_traits : lambda_traits<decltype(&T::template operator()<Args...>)> {};
-template<typename T>
-struct lambda_traits<T> : lambda_traits<decltype(&T::operator())> {};
+template<typename T> struct lambda_traits_base;
 template<typename ClassType, typename R, typename ...Args>
-struct lambda_traits<R(ClassType::*)(Args...) const> {
+struct lambda_traits_base<R(ClassType::*)(Args...) const> {
     using result_type = R;
     using args_type = std::tuple<Args...>;
     template<size_t index>
     using arg_type_at = std::tuple_element_t<index, args_type>;
     static constexpr size_t arity = sizeof...(Args);
 };
+
+template<typename T>
+struct allshit {
+    template<typename U>
+    static auto fuck(int) -> decltype(&U::template operator()<>);
+    template<typename U>
+    static auto fuck(...) -> decltype(&U::operator());
+
+    using type = decltype(fuck<T>(0));
+};
+
+template<typename T, typename ...Args>
+struct lambda_traits : lambda_traits_base<decltype(&T::template operator()<Args...>)> {};
+template<typename T>
+struct lambda_traits<T> : lambda_traits_base<typename allshit<T>::type> {};
 
 template<typename T> struct is_tuple {
     static constexpr bool value = false;
