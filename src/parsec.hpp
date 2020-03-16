@@ -11,6 +11,7 @@
 #include <type_traits>
 
 namespace parsec {
+
 template<typename T> struct lambda_traits_base;
 template<typename ClassType, typename R, typename ...Args>
 struct lambda_traits_base<R(ClassType::*)(Args...) const> {
@@ -21,20 +22,21 @@ struct lambda_traits_base<R(ClassType::*)(Args...) const> {
     static constexpr size_t arity = sizeof...(Args);
 };
 
-template<typename T>
-struct allshit {
-    template<typename U>
-    static auto fuck(int) -> decltype(&U::template operator()<>);
-    template<typename U>
-    static auto fuck(...) -> decltype(&U::operator());
-
-    using type = decltype(fuck<T>(0));
+template<typename T, typename = std::void_t<>>
+struct call_which {
+    using type = decltype(&T::operator());
 };
+template<typename T>
+struct call_which<T, std::void_t<decltype(&T::template operator()<>)>> {
+    using type = decltype(&T::template operator()<>);
+};
+template<typename T>
+using call_which_t = typename call_which<T>::type;
 
 template<typename T, typename ...Args>
 struct lambda_traits : lambda_traits_base<decltype(&T::template operator()<Args...>)> {};
 template<typename T>
-struct lambda_traits<T> : lambda_traits_base<typename allshit<T>::type> {};
+struct lambda_traits<T> : lambda_traits_base<call_which_t<T>> {};
 
 template<typename T> struct is_tuple {
     static constexpr bool value = false;
