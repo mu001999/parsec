@@ -11,8 +11,10 @@
 #include <type_traits>
 
 namespace parsec {
+template<typename T, typename ...Args>
+struct lambda_traits : lambda_traits<decltype(&T::template operator()<Args...>)> {};
 template<typename T>
-struct lambda_traits : lambda_traits<decltype(&T::operator())> {};
+struct lambda_traits<T> : lambda_traits<decltype(&T::operator())> {};
 template<typename ClassType, typename R, typename ...Args>
 struct lambda_traits<R(ClassType::*)(Args...) const> {
     using result_type = R;
