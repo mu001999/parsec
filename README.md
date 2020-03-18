@@ -1,6 +1,6 @@
 # Parsec
 
-A parser combinator library for C++
+A parser combinator library for C++, you can copy the header file to `/usr/include` to include it easily
 
 ## Example
 
