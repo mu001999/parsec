@@ -379,4 +379,19 @@ inline ParsecComponent<char> operator""_T(char ch) {
     });
     return component;
 }
+
+inline ParsecComponent<std::string> operator""_T(const char *str, std::size_t len) {
+    ParsecComponent<std::string> component;
+    component.set_exec([pattern = std::string(str)](const std::string &str, std::size_t &length) -> std::optional<std::string> {
+        for (auto c : pattern) {
+            if (str[length] == c) {
+                ++length;
+            } else {
+                return {};
+            }
+        }
+        return pattern;
+    });
+    return component;
+}
 }
