@@ -367,6 +367,22 @@ ParsecComponent<Result>::operator+(const Parsec<RhsResult> &rhs) const {
     return component;
 }
 
+struct Token
+{
+    template<typename Func>
+    static ParsecComponent<char> by(Func &&check) {
+        ParsecComponent<char> component;
+        component.set_exec([cond = std::move(check)](const std::string &str, std::size_t &length) -> std::optional<char> {
+            if (cond(str[length])) {
+                return str[length++];
+            } else {
+                return {};
+            }
+        });
+        return component;
+    }
+};
+
 inline ParsecComponent<char> operator""_T(char ch) {
     ParsecComponent<char> component;
     component.set_exec([ch](const std::string &str, std::size_t &length) -> std::optional<char> {
