@@ -347,7 +347,7 @@ ParsecComponent<Result>::operator+(const Parsec<RhsResult> &rhs) const {
 
 struct Token
 {
-    static ParsecComponent<char> by(const std::function<bool(char)> cond) {
+    static ParsecComponent<char> by(const std::function<bool(char)> &cond) {
         return ParsecComponent<char>([cond](const std::string &str, std::size_t &index) -> std::optional<char> {
             if (cond(str[index])) {
                 return str[index++];
