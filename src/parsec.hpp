@@ -11,6 +11,7 @@
 #include <type_traits>
 
 namespace parsec {
+#if __cplusplus > 201703L
 
 template<typename T> struct lambda_traits_base;
 template<typename ClassType, typename R, typename ...Args>
@@ -37,6 +38,22 @@ template<typename T, typename ...Args>
 struct lambda_traits : lambda_traits_base<decltype(&T::template operator()<Args...>)> {};
 template<typename T>
 struct lambda_traits<T> : lambda_traits_base<call_which_t<T>> {};
+
+#else
+template<typename T> struct lambda_traits_base;
+template<typename ClassType, typename R, typename ...Args>
+struct lambda_traits_base<R(ClassType::*)(Args...) const> {
+    using result_type = R;
+    using args_type = std::tuple<Args...>;
+    template<size_t index>
+    using arg_type_at = std::tuple_element_t<index, args_type>;
+    static constexpr size_t arity = sizeof...(Args);
+};
+
+template<typename T>
+struct lambda_traits : lambda_traits_base<decltype(&T::operator())> {};
+
+#endif
 
 template<typename T> struct is_tuple {
     static constexpr bool value = false;
