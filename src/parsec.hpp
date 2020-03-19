@@ -253,6 +253,8 @@ template<typename Result>
 class Parsec {
   public:
     Parsec() : component_(nullptr) {};
+    Parsec(ParsecComponent<Result> &&component)
+      : component_(std::make_shared<ParsecComponent<Result>(std::move(component))>) {}
 
     std::shared_ptr<ParsecComponent<Result>> component() const {
         return std::static_pointer_cast<ParsecComponent<Result>>(component_);
