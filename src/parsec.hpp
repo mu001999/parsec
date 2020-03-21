@@ -152,9 +152,9 @@ inline std::optional<Result> callback_template(Func1 exec, Func2 callback, const
     if (result) {
         auto v = result.value();
         if constexpr (is_tuple_v<decltype(v)>) {
-            return std::apply(callback, v);
+            return std::apply(callback, std::move(v));
         } else {
-            return callback(v);
+            return callback(std::move(v));
         }
     } else {
         index = anchor;
