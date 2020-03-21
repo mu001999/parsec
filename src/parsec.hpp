@@ -134,6 +134,12 @@ template<typename T1, typename ...T1s, typename ...T2s> struct product<std::vari
     using type = addition_t<product_t<T1, std::variant<T2s...>>, product_t<std::variant<T1s...>, std::variant<T2s...>>>;
 };
 
+struct Placeholder {
+    Placeholder() = default;
+    template<typename T>
+    Placeholder(const T &&) {}
+};
+
 class ParsecComponentBase {
   public:
     virtual ~ParsecComponentBase() = default;
