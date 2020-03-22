@@ -381,6 +381,31 @@ struct Token
             }
         });
     }
+
+    template<typename R>
+    static ParsecComponent<R> epsilon() {
+        return ParsecComponent<R>([](const std::string &str, std::size_t &index) -> std::optional<R> {
+            return R();
+        });
+    }
+
+    template<typename Func,
+        typename R = typename lambda_traits<Func>::result_type>
+    static ParsecComponent<R> epsilon(Func &&func) {
+        if constexpr (lambda_traits<Func>::arity == 0) {
+            return ParsecComponent<R>([f = std::move(func)](const std::string &str, std::size_t &index) -> std::optional<R> {
+                return f();
+            });
+        } else if constexpr (lambda_traits<Func>::arity == 2 &&
+            std::is_same_v<lambda_traits<Func>::template arg_type_at<0>, const std::string &> &&
+            std::is_same_v<lambda_traits<Func>::template arg_type_at<1>, std::size_t &>) {
+            return ParsecComponent<R>([f = std::move(func)](const std::string &str, std::size_t &index) -> std::optional<R> {
+                return f(str, index);
+            });
+        } else {
+            return;
+        }
+    }
 };
 
 inline ParsecComponent<char> operator""_T(char ch) {
