@@ -27,9 +27,9 @@ int main(int argc, char *argv[])
             } |
         Token::epsilon<string>();
 
-    // Primary := blanks Number blanks
-    Primary = blanks + Number + blanks >>
-        [](char, string number, char) {
+    // Primary := blanks Number
+    Primary = blanks + Number >>
+        [](char, string number) {
             return stoi(number);
         };
 
@@ -39,8 +39,8 @@ int main(int argc, char *argv[])
         [](int primary, int additive) {
             return primary + additive; };
     Additive_ =
-        ('+'_T | '-'_T) + Additive >>
-            [](char op, int additive) {
+        blanks + ('+'_T | '-'_T) + Additive >>
+            [](char, char op, int additive) {
                 return (op == '+' ? additive : -additive); } |
         Token::epsilon<int>();
 
