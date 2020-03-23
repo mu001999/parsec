@@ -1,3 +1,4 @@
+#include <cctype>
 #include <string>
 #include <iostream>
 #include "../src/parsec.hpp"
@@ -12,7 +13,7 @@ int main(int argc, char *argv[])
     Parsec<int> Primary, Additive, Additive_;
 
     // Decimal := '0' | ... | '9'
-    Decimal = '0'_T | '1'_T | '2'_T | '3'_T | '4'_T | '5'_T | '6'_T | '7'_T | '8'_T | '9'_T;
+    Decimal = Token::by(::isdigit);
 
     // Number := Decimal Number | <epsilon>
     Number =
