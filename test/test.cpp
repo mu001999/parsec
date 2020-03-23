@@ -6,8 +6,8 @@
 using namespace std;
 using namespace parsec;
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
+
     Parsec<char> blank, blanks;
     Parsec<char> Decimal;
     Parsec<string> Number;
@@ -37,11 +37,13 @@ int main(int argc, char *argv[])
     // Additive_ := + Additive | - Additive | <epsilon>
     Additive = Primary + Additive_ >>
         [](int primary, int additive) {
-            return primary + additive; };
+            return primary + additive;
+        };
     Additive_ =
         blanks + ('+'_T | '-'_T) + Additive >>
             [](char, char op, int additive) {
-                return (op == '+' ? additive : -additive); } |
+                return (op == '+' ? additive : -additive);
+            } |
         Token::epsilon<int>();
 
     cout << Additive("1 + 2 + 3") << endl;
