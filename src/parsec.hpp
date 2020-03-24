@@ -273,7 +273,7 @@ class ParsecComponent : public ParsecComponentBase {
 };
 
 template<typename Result>
-class Parsec {
+class Parsec final {
   public:
     Parsec() : component_(nullptr) {};
     Parsec(ParsecComponent<Result> &&component)
@@ -283,8 +283,26 @@ class Parsec {
         return std::static_pointer_cast<ParsecComponent<Result>>(component_);
     }
 
-    Parsec &operator=(ParsecComponent<Result> &&component) {
-        component_ = std::make_shared<ParsecComponent<Result>>(std::move(component));
+    template<typename RecvResult>
+    Parsec &operator=(ParsecComponent<RecvResult> &&component) {
+        if constexpr (std::is_same_v<Result, RecvResult>) {
+            component_ = std::make_shared<ParsecComponent<Result>>(std::move(component));
+        } else {
+            static_assert(std::is_convertible_v<RecvResult, Result>);
+            component_ = std::make_shared<ParsecComponent<Result>>(
+                [exec = component.exec()](const std::string &str, std::size_t &index) -> std::optional<Result> {
+                    return exec(str, index);
+            });
+        }
+        return *this;
+    }
+
+    template<typename RecvResult>
+    Parsec &operator=(const Parsec<RecvResult> &recv) {
+        static_assert(std::is_convertible_v<RecvResult, Result>);
+        component_ = std::make_shared<ParsecComponent<Result>>([&recv](const std::string &str, std::size_t &index) -> std::optional<Result> {
+            return recv.operator()(str, index);
+        });
         return *this;
     }
 
