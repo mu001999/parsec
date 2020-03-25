@@ -197,13 +197,13 @@ inline std::optional<Result> connect_template(Func1 lexec, Func2 rexec, const st
             auto lv = std::move(lr).value();
             auto rv = std::move(rr).value();
             if constexpr (is_tuple_v<decltype(lv)> and is_tuple_v<decltype(rv)>) {
-                return std::tuple_cat(lv, rv);
+                return std::tuple_cat(std::move(lv), std::move(rv));
             } else if constexpr (is_tuple_v<decltype(lv)>) {
-                return std::tuple_cat(lv, std::make_tuple(rv));
+                return std::tuple_cat(std::move(lv), std::make_tuple(std::move(rv)));
             } else if constexpr (is_tuple_v<decltype(rv)>) {
-                return std::tuple_cat(std::make_tuple(lv), rv);
+                return std::tuple_cat(std::make_tuple(std::move(lv)), std::move(rv));
             } else {
-                return std::make_tuple(lv, rv);
+                return std::make_tuple(std::move(lv), std::move(rv));
             };
         } else {
             index = anchor;
@@ -299,7 +299,7 @@ class Parsec final {
 
     template<typename RecvResult>
     Parsec &operator=(const Parsec<RecvResult> &recv) {
-        static_assert(std::is_same_v<RecvResult, Result> || std::is_convertible_v<RecvResult, Result>);
+        static_assert(std::is_convertible_v<RecvResult, Result>);
         component_ = std::make_shared<ParsecComponent<Result>>([&recv](const std::string &str, std::size_t &index) -> std::optional<Result> {
             return recv.operator()(str, index);
         });
@@ -315,7 +315,7 @@ class Parsec final {
         if (component_) {
             auto r = component()->operator()(str, index);
             if (r) {
-                return r.value();
+                return std::move(r).value();
             } else {
                 throw std::runtime_error("parse error at " + std::to_string(index));
             }
