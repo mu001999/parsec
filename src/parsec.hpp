@@ -285,7 +285,7 @@ class Parsec final {
 
     template<typename RecvResult>
     Parsec &operator=(ParsecComponent<RecvResult> &&component) {
-        if constexpr (std::is_same_v<Result, RecvResult>) {
+        if constexpr (std::is_same_v<RecvResult, Result>) {
             component_ = std::make_shared<ParsecComponent<Result>>(std::move(component));
         } else {
             static_assert(std::is_convertible_v<RecvResult, Result>);
@@ -299,7 +299,7 @@ class Parsec final {
 
     template<typename RecvResult>
     Parsec &operator=(const Parsec<RecvResult> &recv) {
-        static_assert(std::is_convertible_v<RecvResult, Result>);
+        static_assert(std::is_same_v<RecvResult, Result> || std::is_convertible_v<RecvResult, Result>);
         component_ = std::make_shared<ParsecComponent<Result>>([&recv](const std::string &str, std::size_t &index) -> std::optional<Result> {
             return recv.operator()(str, index);
         });
