@@ -252,7 +252,7 @@ class ParsecComponent : public ParsecComponentBase {
         typename NewResult = product_t<Result, RhsResult>>
     ParsecComponent<NewResult> operator+(const ParsecComponent<RhsResult> &rhs) const {
         return ParsecComponent<NewResult>([lexec = this->exec(), rexec = rhs.exec()](const std::string &str, std::size_t &index) {
-            return connect_template(lexec, rexec, str, index);
+            return connect_template<NewResult>(lexec, rexec, str, index);
         });
     }
 
