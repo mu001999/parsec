@@ -42,4 +42,5 @@ cout << Additive("1+2+3") << endl;
 
 ## ChangeLog
 
++ [X] Fix bug if the return type is copy unassignable
 + [X] Support \<epsilon\>
