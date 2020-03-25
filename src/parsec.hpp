@@ -156,7 +156,7 @@ inline std::optional<Result> callback_template(Func1 exec, Func2 callback, const
     auto anchor = index;
     auto result = exec(str, index);
     if (result) {
-        auto v = result.value();
+        auto v = std::move(result).value();
         if constexpr (is_tuple_v<decltype(v)>) {
             return std::apply(callback, std::move(v));
         } else {
@@ -194,8 +194,8 @@ inline std::optional<Result> connect_template(Func1 lexec, Func2 rexec, const st
         anchor = index;
         auto rr = rexec(str, index);
         if (rr) {
-            auto lv = lr.value();
-            auto rv = rr.value();
+            auto lv = std::move(lr).value();
+            auto rv = std::move(rr).value();
             if constexpr (is_tuple_v<decltype(lv)> and is_tuple_v<decltype(rv)>) {
                 return std::tuple_cat(lv, rv);
             } else if constexpr (is_tuple_v<decltype(lv)>) {
