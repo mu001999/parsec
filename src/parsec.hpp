@@ -140,11 +140,6 @@ struct Placeholder {
     Placeholder(const T &&) {}
 };
 
-class ParsecComponentBase {
-  public:
-    virtual ~ParsecComponentBase() = default;
-};
-
 template<typename Result>
 class ParsecComponent;
 
@@ -152,7 +147,8 @@ template<typename Result>
 class Parsec;
 
 template<typename Result, typename Func1, typename Func2>
-inline std::optional<Result> callback_template(Func1 exec, Func2 callback, const std::string &str, std::size_t &index) {
+inline std::optional<Result>
+callback_template(const Func1 &exec, const Func2 &callback, const std::string &str, std::size_t &index) {
     auto anchor = index;
     auto result = exec(str, index);
     if (result) {
@@ -169,7 +165,8 @@ inline std::optional<Result> callback_template(Func1 exec, Func2 callback, const
 }
 
 template<typename Result, typename Func1, typename Func2>
-inline std::optional<Result> alternate_template(Func1 lexec, Func2 rexec, const std::string &str, std::size_t &index) {
+inline std::optional<Result>
+alternate_template(const Func1 &lexec, const Func2 &rexec, const std::string &str, std::size_t &index) {
     auto anchor = index;
     auto lr = lexec(str, index);
     if (lr) {
@@ -187,7 +184,8 @@ inline std::optional<Result> alternate_template(Func1 lexec, Func2 rexec, const 
 }
 
 template<typename Result, typename Func1, typename Func2>
-inline std::optional<Result> connect_template(Func1 lexec, Func2 rexec, const std::string &str, std::size_t &index) {
+inline std::optional<Result>
+connect_template(const Func1 &lexec, const Func2 &rexec, const std::string &str, std::size_t &index) {
     auto anchor = index;
     auto lr = lexec(str, index);
     if (lr) {
@@ -217,7 +215,7 @@ inline std::optional<Result> connect_template(Func1 lexec, Func2 rexec, const st
 
 // Result must be a single type, Tuple or Variant
 template<typename Result>
-class ParsecComponent : public ParsecComponentBase {
+class ParsecComponent {
   public:
     using ResultType = std::optional<Result>;
 
@@ -235,7 +233,7 @@ class ParsecComponent : public ParsecComponentBase {
     template<typename Func,
         typename NewResult = typename lambda_traits<Func>::result_type>
     ParsecComponent<NewResult> operator>>(Func &&callback) const {
-        return ParsecComponent<NewResult>([exec = this->exec(), cb = std::move(callback)](const std::string &str, std::size_t &index) {
+        return ParsecComponent<NewResult>([exec = exec_, cb = std::move(callback)](const std::string &str, std::size_t &index) {
             return callback_template<NewResult>(exec, cb, str, index);
         });
     }
@@ -243,7 +241,7 @@ class ParsecComponent : public ParsecComponentBase {
     template<typename RhsResult,
         typename NewResult = addition_t<Result, RhsResult>>
     ParsecComponent<NewResult> operator|(const ParsecComponent<RhsResult> &rhs) const {
-        return ParsecComponent<NewResult>([lexec = this->exec(), rexec = rhs.exec()](const std::string &str, std::size_t &index) {
+        return ParsecComponent<NewResult>([lexec = exec_, rexec = rhs.exec()](const std::string &str, std::size_t &index) {
             return alternate_template<NewResult>(lexec, rexec, str, index);
         });
     }
@@ -251,7 +249,7 @@ class ParsecComponent : public ParsecComponentBase {
     template<typename RhsResult,
         typename NewResult = product_t<Result, RhsResult>>
     ParsecComponent<NewResult> operator+(const ParsecComponent<RhsResult> &rhs) const {
-        return ParsecComponent<NewResult>([lexec = this->exec(), rexec = rhs.exec()](const std::string &str, std::size_t &index) {
+        return ParsecComponent<NewResult>([lexec = exec_, rexec = rhs.exec()](const std::string &str, std::size_t &index) {
             return connect_template<NewResult>(lexec, rexec, str, index);
         });
     }
@@ -262,11 +260,9 @@ class ParsecComponent : public ParsecComponentBase {
     template<typename RhsResult>
     ParsecComponent<product_t<Result, RhsResult>> operator+(const Parsec<RhsResult> &rhs) const;
 
-    std::function<ResultType(const std::string &, std::size_t &)> exec() const {
+    auto exec() const {
         return exec_;
     }
-
-    friend ParsecComponent<char> operator""_T(char ch);
 
   private:
     std::function<ResultType(const std::string &, std::size_t &)> exec_;
@@ -279,8 +275,8 @@ class Parsec final {
     Parsec(ParsecComponent<Result> &&component)
       : component_(std::make_shared<ParsecComponent<Result>(std::move(component))>) {}
 
-    std::shared_ptr<ParsecComponent<Result>> component() const {
-        return std::static_pointer_cast<ParsecComponent<Result>>(component_);
+    auto component() const {
+        return component_;
     }
 
     template<typename RecvResult>
@@ -313,7 +309,7 @@ class Parsec final {
 
     Result operator()(const std::string &str, std::size_t &index) const {
         if (component_) {
-            auto r = component()->operator()(str, index);
+            auto r = component_->operator()(str, index);
             if (r) {
                 return std::move(r).value();
             } else {
@@ -365,7 +361,7 @@ class Parsec final {
     }
 
   private:
-    std::shared_ptr<ParsecComponentBase> component_;
+    std::shared_ptr<ParsecComponent<Result>> component_;
 };
 
 template<typename Result>
@@ -373,7 +369,7 @@ template<typename RhsResult>
 inline ParsecComponent<addition_t<Result, RhsResult>>
 ParsecComponent<Result>::operator|(const Parsec<RhsResult> &rhs) const {
     using NewResult = addition_t<Result, RhsResult>;
-    return ParsecComponent<NewResult>([lexec = this->exec(), &rhs](const std::string &str, std::size_t &index) {
+    return ParsecComponent<NewResult>([lexec = exec_, &rhs](const std::string &str, std::size_t &index) {
         return alternate_template<NewResult>(lexec, rhs.component()->exec(), str, index);
     });
 }
@@ -383,7 +379,7 @@ template<typename RhsResult>
 inline ParsecComponent<product_t<Result, RhsResult>>
 ParsecComponent<Result>::operator+(const Parsec<RhsResult> &rhs) const {
     using NewResult = product_t<Result, RhsResult>;
-    return ParsecComponent<NewResult>([lexec = this->exec(), &rhs](const std::string &str, std::size_t &index) {
+    return ParsecComponent<NewResult>([lexec = exec_, &rhs](const std::string &str, std::size_t &index) {
         return connect_template<NewResult>(lexec, rhs.component()->exec(), str, index);
     });
 }
@@ -419,8 +415,6 @@ struct Token {
             return ParsecComponent<R>([f = std::move(func)](const std::string &str, std::size_t &index) -> std::optional<R> {
                 return f(str, index);
             });
-        } else {
-            return;
         }
     }
 };
