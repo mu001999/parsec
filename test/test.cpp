@@ -8,13 +8,13 @@ using namespace parsec;
 
 int main(int argc, char *argv[]) {
 
-    Parsec<char> blank, blanks;
+    Parsec<char> Blank, Blanks;
     Parsec<char> Decimal;
     Parsec<string> Number;
     Parsec<int> Primary, Additive, Additive_;
 
-    blank = Token::by(::isblank);
-    blanks = blank + blanks >> [](char, char) -> char { return 0; } | Token::epsilon<char>();
+    Blank = Token::by(::isspace);
+    Blanks = Blank + Blanks >> [](char, char) -> char { return 0; } | Token::epsilon<char>();
 
     // Decimal := '0' | ... | '9'
     Decimal = Token::by(::isdigit);
@@ -27,8 +27,8 @@ int main(int argc, char *argv[]) {
             } |
         Token::epsilon<string>();
 
-    // Primary := blanks Number
-    Primary = blanks + Number >>
+    // Primary := Blanks Number
+    Primary = Blanks + Number >>
         [](char, string number) {
             return stoi(number);
         };
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
             return primary + additive;
         };
     Additive_ =
-        blanks + ('+'_T | '-'_T) + Additive >>
+        Blanks + ('+'_T | '-'_T) + Additive >>
             [](char, char op, int additive) {
                 return (op == '+' ? additive : -additive);
             } |
