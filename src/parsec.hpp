@@ -301,7 +301,7 @@ class Parsec final {
     Parsec &operator=(const Parsec<RecvResult> &recv) {
         static_assert(std::is_convertible_v<RecvResult, Result>);
         component_ = std::make_shared<ParsecComponent<Result>>([&recv](const std::string &str, std::size_t &index) -> std::optional<Result> {
-            return recv.operator()(str, index);
+            return recv.component()->operator()(str, index);
         });
         return *this;
     }
@@ -391,7 +391,7 @@ ParsecComponent<Result>::operator+(const Parsec<RhsResult> &rhs) const {
 struct Token {
     static ParsecComponent<char> by(const std::function<bool(char)> &cond) {
         return ParsecComponent<char>([cond](const std::string &str, std::size_t &index) -> std::optional<char> {
-            if (cond(str[index])) {
+            if (index < str.size() && cond(str[index])) {
                 return str[index++];
             } else {
                 return {};
@@ -427,7 +427,7 @@ struct Token {
 
 inline ParsecComponent<char> operator""_T(char ch) {
     return ParsecComponent<char>([ch](const std::string &str, std::size_t &index) -> std::optional<char> {
-        if (str[index] == ch) {
+        if (index < str.size() && str[index] == ch) {
             return str[index++];
         } else {
             return {};
@@ -438,7 +438,7 @@ inline ParsecComponent<char> operator""_T(char ch) {
 inline ParsecComponent<std::string> operator""_T(const char *str, std::size_t len) {
     return ParsecComponent<std::string>([pattern = std::string(str)](const std::string &str, std::size_t &index) -> std::optional<std::string> {
         for (auto c : pattern) {
-            if (str[index] == c) {
+            if (index < str.size() && str[index] == c) {
                 ++index;
             } else {
                 return {};
