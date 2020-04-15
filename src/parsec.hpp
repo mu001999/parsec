@@ -172,39 +172,6 @@ struct product<std::tuple<T1s...>, std::tuple<T2s...>>
 {
     using type = std::tuple<T1s..., T2s...>;
 };
-template<typename T1, typename T2>
-struct product<std::variant<T1>, T2>
-{
-    using type = std::variant<std::tuple<T1, T2>>;
-};
-template<typename T1, typename T2>
-struct product<T1, std::variant<T2>>
-{
-    using type = std::variant<std::tuple<T1, T2>>;
-};
-template<typename T1, typename ...T1s, typename T2>
-struct product<std::variant<T1, T1s...>, T2>
-{
-    using type = concat_t<product_t<T1, T2>,
-        product_t<std::variant<T1s...>, T2>>;
-};
-template<typename T1, typename T2, typename ...T2s>
-struct product<T1, std::variant<T2, T2s...>>
-{
-    using type = concat_t<product_t<T1, T2>,
-        product_t<T1, std::variant<T2s...>>>;
-};
-template<typename T1, typename ...T2s>
-struct product<std::variant<T1>, std::variant<T2s...>>
-{
-    using type = product_t<T1, std::variant<T2s...>>;
-};
-template<typename T1, typename ...T1s, typename ...T2s>
-struct product<std::variant<T1, T1s...>, std::variant<T2s...>>
-{
-    using type = addition_t<product_t<T1, std::variant<T2s...>>,
-        product_t<std::variant<T1s...>, std::variant<T2s...>>>;
-};
 
 struct Placeholder
 {
