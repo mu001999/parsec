@@ -46,6 +46,10 @@ Additive_ =
 cout << Additive("1 + 2 + 3") << endl;
 ```
 
+## To Do
+
++ [ ] Support memorization to avoid repeated analysis, making grammar definition clearer
+
 ## ChangeLog
 
 + [X] Fix bug if the return type is copy unassignable
