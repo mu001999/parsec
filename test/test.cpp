@@ -6,47 +6,80 @@
 using namespace std;
 using namespace parsec;
 
-int main(int argc, char *argv[]) {
-
+int main(int argc, char *argv[])
+{
     Parsec<char> Blank, Blanks;
     Parsec<char> Decimal;
     Parsec<string> Number;
-    Parsec<int> Primary, Additive, Additive_;
+    Parsec<int> Primary, Product, Additive;
 
     Blank = Token::by(::isspace);
-    Blanks = Blank + Blanks >> [](char, char) -> char { return 0; } | Token::epsilon<char>();
+    Blanks =
+      Blank + Blanks >>
+        [](char, char) -> char
+        {
+            return 0;
+        } |
+      Token::epsilon<char>();
 
-    // Decimal := '0' | ... | '9'
+    // Decimal
+    // : '0' | ... | '9'
     Decimal = Token::by(::isdigit);
 
-    // Number := Decimal Number | <epsilon>
+    // Number
+    // : Decimal Number | <epsilon>
     Number =
-        Decimal + Number >>
-            [](char decimal, string number) {
-                return decimal + number;
-            } |
-        Token::epsilon<string>();
+      Decimal + Number >>
+        [](char decimal, string number)
+        {
+            return decimal + number;
+        } |
+      Token::epsilon<string>();
 
-    // Primary := Blanks Number
-    Primary = Blanks + Number >>
-        [](char, string number) {
+    // Primary
+    // : Blanks Number
+    Primary =
+      Blanks + Number >>
+        [](char, string number)
+        {
             return stoi(number);
         };
 
-    // Additive := Primary Additive_
-    // Additive_ := + Additive | - Additive | <epsilon>
-    Additive = Primary + Additive_ >>
-        [](int primary, int additive) {
-            return primary + additive;
-        };
-    Additive_ =
-        Blanks + ('+'_T | '-'_T) + Additive >>
-            [](char, char op, int additive) {
-                return (op == '+' ? additive : -additive);
-            } |
-        Token::epsilon<int>();
+    // Product
+    // : Primary Blanks * Product
+    // | Primary Blanks / Product
+    // | Primary
+    Product =
+      Primary + Blanks + '*'_T + Product >>
+        [](int lhs, char, char, int rhs)
+        {
+            return lhs * rhs;
+        } |
+      Primary + Blanks + '/'_T + Product >>
+        [](int lhs, char, char, int rhs)
+        {
+            return lhs / rhs;
+        } |
+      Primary;
 
-    cout << Additive("1 + 2 + 3") << endl;
+    // Additive
+    // : Product + Additive
+    // | Product - Additive
+    // | Product
+    Additive =
+      Product + Blanks + '+'_T + Additive >>
+        [](int lhs, char, char, int rhs)
+        {
+            return lhs + rhs;
+        } |
+      Product + Blanks + '-'_T + Additive >>
+        [](int lhs, char, char, int rhs)
+        {
+            return lhs - rhs;
+        } |
+      Product;
+
+    cout << Additive("2 * 3 + 4 * 5") << endl;
 
     return 0;
 }
