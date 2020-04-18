@@ -1,11 +1,13 @@
 #pragma once
 
 #include <any>
+#include <map>
 #include <tuple>
 #include <string>
 #include <memory>
 #include <variant>
 #include <optional>
+#include <typeinfo>
 #include <exception>
 #include <functional>
 #include <type_traits>
@@ -186,13 +188,52 @@ class ParsecComponent;
 template<typename Result>
 class Parsec;
 
+inline
+std::map<std::tuple<void *, const std::string *, size_t>,
+    std::pair<void *, size_t>>
+theMemory;
+
+template<typename Func>
+inline auto
+get_result(const Func &func,
+    const std::string &str, std::size_t &index)
+{
+    auto key = std::make_tuple<void *>((void *)&func, &str, index);
+    if (theMemory.count(key))
+    {
+        auto pir = move(theMemory[key]);
+        theMemory.erase(key);
+
+        index = pir.second;
+
+        auto ptr = reinterpret_cast<decltype(func(str, index)) *>(pir.first);
+        auto value = std::move(*ptr);
+        delete ptr;
+        return value;
+    }
+    else
+    {
+        return func(str, index);
+    }
+}
+
+template<typename Func, typename T>
+inline void
+put_in_mem(const Func &func,
+    const std::string &str, size_t index,
+    T &&value, size_t target)
+{
+    theMemory[std::make_tuple<void *>((void *)&func, &str, index)]
+        = std::make_pair<void *>(new T(std::move(value)), target);
+}
+
 template<typename Result, typename Func1, typename Func2>
 inline std::optional<Result>
 callback_template(const Func1 &exec, const Func2 &callback,
     const std::string &str, std::size_t &index)
 {
     auto anchor = index;
-    auto result = exec(str, index);
+    auto result = get_result(exec, str, index);
     if (result)
     {
         auto v = std::move(result).value();
@@ -218,7 +259,7 @@ alternate_template(const Func1 &lexec, const Func2 &rexec,
     const std::string &str, std::size_t &index)
 {
     auto anchor = index;
-    auto lr = lexec(str, index);
+    auto lr = get_result(lexec, str, index);
     if (lr)
     {
         return lr;
@@ -226,7 +267,7 @@ alternate_template(const Func1 &lexec, const Func2 &rexec,
     else
     {
         index = anchor;
-        auto rr = rexec(str, index);
+        auto rr = get_result(rexec, str, index);
         if (rr)
         {
             return rr;
@@ -245,11 +286,11 @@ connect_template(const Func1 &lexec, const Func2 &rexec,
     const std::string &str, std::size_t &index)
 {
     auto anchor = index;
-    auto lr = lexec(str, index);
+    auto lr = get_result(lexec, str, index);
     if (lr)
     {
-        anchor = index;
-        auto rr = rexec(str, index);
+        auto lrtarget = index;
+        auto rr = get_result(rexec, str, index);
         if (rr)
         {
             auto lv = std::move(lr).value();
@@ -274,6 +315,7 @@ connect_template(const Func1 &lexec, const Func2 &rexec,
         else
         {
             index = anchor;
+            put_in_mem(lexec, str, anchor, move(lr), lrtarget);
             return {};
         }
     }
@@ -354,7 +396,7 @@ class ParsecComponent
     ParsecComponent<product_t<Result, RhsResult>>
     operator+(const Parsec<RhsResult> &rhs) const;
 
-    auto exec() const
+    auto &exec() const
     {
         return exec_;
     }
