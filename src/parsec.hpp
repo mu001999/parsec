@@ -331,16 +331,16 @@ template<typename Result>
 class ParsecComponent
 {
   public:
-    using ResultType = std::optional<Result>;
+    using OptResult = std::optional<Result>;
+    using ExecFunc = std::function<OptResult(const std::string &, std::size_t &)>;
 
     ParsecComponent() = default;
     ParsecComponent(ParsecComponent &&component)
       : exec_(std::move(component.exec_)) {}
-    ParsecComponent(std::function<ResultType(const std::string &, std::size_t &)> exec)
+    ParsecComponent(ExecFunc exec)
       : exec_(std::move(exec)) {}
-    virtual ~ParsecComponent() = default;
 
-    ResultType
+    OptResult
     operator()(const std::string &str, std::size_t &index) const
     {
         return exec_(str, index);
@@ -356,8 +356,7 @@ class ParsecComponent
             (const std::string &str, std::size_t &index)
             {
                 return callback_template<NewResult>(exec, cb, str, index);
-            }
-        );
+            });
     }
 
     template<typename RhsResult,
@@ -370,8 +369,7 @@ class ParsecComponent
             (const std::string &str, std::size_t &index)
             {
                 return alternate_template<NewResult>(lexec, rexec, str, index);
-            }
-        );
+            });
     }
 
     template<typename RhsResult,
@@ -384,8 +382,7 @@ class ParsecComponent
             (const std::string &str, std::size_t &index)
             {
                 return connect_template<NewResult>(lexec, rexec, str, index);
-            }
-        );
+            });
     }
 
     template<typename RhsResult>
@@ -402,7 +399,7 @@ class ParsecComponent
     }
 
   private:
-    std::function<ResultType(const std::string &, std::size_t &)> exec_;
+    std::function<OptResult(const std::string &, std::size_t &)> exec_;
 };
 
 template<typename Result>
@@ -435,8 +432,7 @@ class Parsec final
                     -> std::optional<Result>
                 {
                     return exec(str, index);
-                }
-            );
+                });
         }
         return *this;
     }
@@ -452,8 +448,7 @@ class Parsec final
                 -> std::optional<Result>
             {
                 return recv.component()->operator()(str, index);
-            }
-        );
+            });
         return *this;
     }
 
@@ -494,9 +489,9 @@ class Parsec final
             [this, cb = std::move(callback)]
             (const std::string &str, std::size_t &index)
             {
-                return callback_template<NewResult>(this->component()->exec(), cb, str, index);
-            }
-        );
+                return callback_template<NewResult>(
+                    this->component()->exec(), cb, str, index);
+            });
     }
 
     template<typename RhsResult,
@@ -508,9 +503,10 @@ class Parsec final
             [this, &rhs]
             (const std::string &str, std::size_t &index)
             {
-                return alternate_template<NewResult>(this->component()->exec(), rhs.component()->exec(), str, index);
-            }
-        );
+                return alternate_template<NewResult>(
+                    this->component()->exec(),
+                    rhs.component()->exec(), str, index);
+            });
     }
 
     template<typename RhsResult,
@@ -522,9 +518,10 @@ class Parsec final
             [this, &rhs]
             (const std::string &str, std::size_t &index)
             {
-                return connect_template<NewResult>(this->component()->exec(), rhs.component()->exec(), str, index);
-            }
-        );
+                return connect_template<NewResult>(
+                    this->component()->exec(),
+                    rhs.component()->exec(), str, index);
+            });
     }
 
     template<typename RhsResult,
@@ -536,9 +533,9 @@ class Parsec final
             [this, rexec = rhs.exec()]
             (const std::string &str, std::size_t &index)
             {
-                return alternate_template<NewResult>(this->component()->exec(), rexec, str, index);
-            }
-        );
+                return alternate_template<NewResult>(
+                    this->component()->exec(), rexec, str, index);
+            });
     }
 
     template<typename RhsResult,
@@ -550,9 +547,9 @@ class Parsec final
             [this, rexec = rhs.exec()]
             (const std::string &str, std::size_t &index)
             {
-                return connect_template<NewResult>(this->component()->exec(), rexec, str, index);
-            }
-        );
+                return connect_template<NewResult>(
+                    this->component()->exec(), rexec, str, index);
+            });
     }
 
   private:
@@ -561,7 +558,8 @@ class Parsec final
 
 template<typename Result>
 template<typename RhsResult>
-inline ParsecComponent<addition_t<Result, RhsResult>>
+inline
+ParsecComponent<addition_t<Result, RhsResult>>
 ParsecComponent<Result>::operator|(const Parsec<RhsResult> &rhs) const
 {
     using NewResult = addition_t<Result, RhsResult>;
@@ -569,14 +567,15 @@ ParsecComponent<Result>::operator|(const Parsec<RhsResult> &rhs) const
         [lexec = exec_, &rhs]
         (const std::string &str, std::size_t &index)
         {
-            return alternate_template<NewResult>(lexec, rhs.component()->exec(), str, index);
-        }
-    );
+            return alternate_template<NewResult>(lexec,
+                rhs.component()->exec(), str, index);
+        });
 }
 
 template<typename Result>
 template<typename RhsResult>
-inline ParsecComponent<product_t<Result, RhsResult>>
+inline
+ParsecComponent<product_t<Result, RhsResult>>
 ParsecComponent<Result>::operator+(const Parsec<RhsResult> &rhs) const
 {
     using NewResult = product_t<Result, RhsResult>;
@@ -584,14 +583,15 @@ ParsecComponent<Result>::operator+(const Parsec<RhsResult> &rhs) const
         [lexec = exec_, &rhs]
         (const std::string &str, std::size_t &index)
         {
-            return connect_template<NewResult>(lexec, rhs.component()->exec(), str, index);
-        }
-    );
+            return connect_template<NewResult>(lexec,
+                rhs.component()->exec(), str, index);
+        });
 }
 
 struct Token
 {
-    static ParsecComponent<char>
+    static
+    ParsecComponent<char>
     by(const std::function<bool(char)> &cond)
     {
         return ParsecComponent<char>(
@@ -607,27 +607,26 @@ struct Token
                 {
                     return {};
                 }
-            }
-        );
+            });
     }
 
     template<typename R>
-    static ParsecComponent<R>
+    static
+    ParsecComponent<R>
     epsilon()
     {
-        return ParsecComponent<R>(
-            []
+        return ParsecComponent<R>([]
             (const std::string &str, std::size_t &index)
                 -> std::optional<R>
             {
                 return R();
-            }
-        );
+            });
     }
 
     template<typename Func,
         typename R = typename lambda_traits<Func>::result_type>
-    static ParsecComponent<R>
+    static
+    ParsecComponent<R>
     epsilon(Func &&func)
     {
         if constexpr (lambda_traits<Func>::arity == 0)
@@ -638,12 +637,13 @@ struct Token
                     -> std::optional<R>
                 {
                     return f();
-                }
-            );
+                });
         }
-        else if constexpr (lambda_traits<Func>::arity == 2 &&
-            std::is_same_v<lambda_traits<Func>::template arg_type_at<0>, const std::string &> &&
-            std::is_same_v<lambda_traits<Func>::template arg_type_at<1>, std::size_t &>)
+        else if constexpr (lambda_traits<Func>::arity == 2
+            and std::is_same_v<lambda_traits<Func>::template arg_type_at<0>,
+                const std::string &>
+            and std::is_same_v<lambda_traits<Func>::template arg_type_at<1>,
+                std::size_t &>)
         {
             return ParsecComponent<R>(
                 [f = std::move(func)]
@@ -651,13 +651,17 @@ struct Token
                     -> std::optional<R>
                 {
                     return f(str, index);
-                }
-            );
+                });
+        }
+        else
+        {
+            return;
         }
     }
 };
 
-inline ParsecComponent<char>
+inline
+ParsecComponent<char>
 operator""_T(char ch)
 {
     return ParsecComponent<char>(
@@ -673,11 +677,11 @@ operator""_T(char ch)
             {
                 return {};
             }
-        }
-    );
+        });
 }
 
-inline ParsecComponent<std::string>
+inline
+ParsecComponent<std::string>
 operator""_T(const char *str, std::size_t len)
 {
     return ParsecComponent<std::string>(
@@ -687,7 +691,8 @@ operator""_T(const char *str, std::size_t len)
         {
             for (auto c : pattern)
             {
-                if (index < str.size() && str[index] == c)
+                if (index < str.size()
+                    and str[index] == c)
                 {
                     ++index;
                 }
@@ -697,7 +702,6 @@ operator""_T(const char *str, std::size_t len)
                 }
             }
             return pattern;
-        }
-    );
+        });
 }
 }
