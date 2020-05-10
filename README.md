@@ -12,6 +12,6 @@ See [test/test.cpp](test/test.cpp)
 
 ## ChangeLog
 
-+ [X] Support memorization to avoid repeated analysis, making grammar definition clearer
-+ [X] Fix bug if the return type is copy unassignable
-+ [X] Support \<epsilon\>
+- [X] Support memorization to avoid repeated analysis, making grammar definition clearer
+- [X] Fix bug if the return type is copy unassignable
+- [X] Support \<epsilon\>
