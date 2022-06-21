@@ -655,7 +655,7 @@ struct Token
         }
         else
         {
-            return;
+            return epsilon();
         }
     }
 };
